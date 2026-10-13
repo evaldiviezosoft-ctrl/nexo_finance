@@ -50,7 +50,20 @@ service cloud.firestore {
           || request.resource.data.paymentDay == null
           || (request.resource.data.paymentDay is int
             && request.resource.data.paymentDay >= 1
-            && request.resource.data.paymentDay <= 31));
+            && request.resource.data.paymentDay <= 31))
+        && (!('cryptoAssetSymbol' in request.resource.data)
+          || request.resource.data.cryptoAssetSymbol == null
+          || (request.resource.data.cryptoAssetSymbol is string
+            && request.resource.data.cryptoAssetSymbol.matches('^[A-Z0-9]{2,12}$')))
+        && (!('cryptoQuantity' in request.resource.data)
+          || request.resource.data.cryptoQuantity == null
+          || (request.resource.data.cryptoQuantity is string
+            && request.resource.data.cryptoQuantity.matches('^[0-9]+(\\.[0-9]+)?$')))
+        && (!('cryptoAprBasisPoints' in request.resource.data)
+          || request.resource.data.cryptoAprBasisPoints == null
+          || (request.resource.data.cryptoAprBasisPoints is int
+            && request.resource.data.cryptoAprBasisPoints >= 0
+            && request.resource.data.cryptoAprBasisPoints <= 100000));
     }
 
     function validCategory(uid, categoryId) {

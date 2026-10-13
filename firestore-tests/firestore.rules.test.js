@@ -116,6 +116,32 @@ test('rechaza propietario falso y días de tarjeta inválidos', async () => {
   );
 });
 
+test('acepta metadatos cripto precisos y rechaza formatos inválidos', async () => {
+  const alice = environment.authenticatedContext('alice').firestore();
+  await assertSucceeds(
+    setDoc(
+      doc(alice, 'users/alice/accounts/binance-usdt'),
+      account('binance-usdt', 'alice', {
+        type: 'crypto',
+        cryptoAssetSymbol: 'USDT',
+        cryptoQuantity: '44.8311617483',
+        cryptoAprBasisPoints: 647,
+      }),
+    ),
+  );
+  await assertFails(
+    setDoc(
+      doc(alice, 'users/alice/accounts/invalid-crypto'),
+      account('invalid-crypto', 'alice', {
+        type: 'crypto',
+        cryptoAssetSymbol: 'USDT',
+        cryptoQuantity: '44,83',
+        cryptoAprBasisPoints: -1,
+      }),
+    ),
+  );
+});
+
 test('el propietario puede borrar sus datos, otro usuario no', async () => {
   const alice = environment.authenticatedContext('alice').firestore();
   const bob = environment.authenticatedContext('bob').firestore();

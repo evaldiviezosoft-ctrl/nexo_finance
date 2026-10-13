@@ -193,6 +193,12 @@ class BackupImportService {
       'creditLimitMinor': value['creditLimitMinor'] as int?,
       'closingDay': value['closingDay'] as int?,
       'paymentDay': value['paymentDay'] as int?,
+      'cryptoAssetSymbol': _optionalText(value, 'cryptoAssetSymbol', max: 12),
+      'cryptoQuantity': _optionalDecimal(value, 'cryptoQuantity'),
+      'cryptoAprBasisPoints': _optionalNonNegativeInteger(
+        value,
+        'cryptoAprBasisPoints',
+      ),
     },
     'categories' => {
       'name': _text(value, 'name', max: 60),
@@ -344,6 +350,42 @@ class BackupImportService {
         item.trim().isEmpty ||
         (max != null && item.length > max)) {
       throw FormatException('Texto inválido en $key.');
+    }
+    return item;
+  }
+
+  static String? _optionalText(
+    Map<String, dynamic> value,
+    String key, {
+    int? max,
+  }) {
+    final item = value[key];
+    if (item == null) return null;
+    if (item is! String ||
+        item.trim().isEmpty ||
+        (max != null && item.length > max)) {
+      throw FormatException('Texto inválido en $key.');
+    }
+    return item;
+  }
+
+  static String? _optionalDecimal(Map<String, dynamic> value, String key) {
+    final item = value[key];
+    if (item == null) return null;
+    if (item is! String || !RegExp(r'^\d+(\.\d+)?$').hasMatch(item)) {
+      throw FormatException('Decimal inválido en $key.');
+    }
+    return item;
+  }
+
+  static int? _optionalNonNegativeInteger(
+    Map<String, dynamic> value,
+    String key,
+  ) {
+    final item = value[key];
+    if (item == null) return null;
+    if (item is! int || item < 0) {
+      throw FormatException('$key no puede ser negativo.');
     }
     return item;
   }

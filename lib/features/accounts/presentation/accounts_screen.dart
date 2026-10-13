@@ -69,9 +69,7 @@ class AccountsScreen extends ConsumerWidget {
                           ),
                         ),
                         title: Text(account.name),
-                        subtitle: Text(
-                          '${account.type.label}${account.active ? '' : ' · Archivada'}',
-                        ),
+                        subtitle: Text(_accountSubtitle(account)),
                         trailing: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.end,
@@ -132,6 +130,9 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
   late final TextEditingController _limit;
   late final TextEditingController _closingDay;
   late final TextEditingController _paymentDay;
+  late final TextEditingController _cryptoAsset;
+  late final TextEditingController _cryptoQuantity;
+  late final TextEditingController _cryptoApr;
   late AccountType _type;
   late Currency _currency;
   bool _saving = false;
@@ -152,6 +153,13 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
     );
     _closingDay = TextEditingController(text: account?.closingDay?.toString());
     _paymentDay = TextEditingController(text: account?.paymentDay?.toString());
+    _cryptoAsset = TextEditingController(text: account?.cryptoAssetSymbol);
+    _cryptoQuantity = TextEditingController(text: account?.cryptoQuantity);
+    _cryptoApr = TextEditingController(
+      text: account?.cryptoAprBasisPoints == null
+          ? ''
+          : _percentageInput(account!.cryptoAprBasisPoints!),
+    );
     _type = account?.type ?? AccountType.cash;
     _currency = account?.currency ?? Currency.pen;
   }
@@ -164,6 +172,9 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
     _limit.dispose();
     _closingDay.dispose();
     _paymentDay.dispose();
+    _cryptoAsset.dispose();
+    _cryptoQuantity.dispose();
+    _cryptoApr.dispose();
     super.dispose();
   }
 
@@ -193,6 +204,16 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
           : null,
       paymentDay: _type == AccountType.creditCard
           ? int.tryParse(_paymentDay.text)
+          : null,
+      cryptoAssetSymbol: _type == AccountType.crypto
+          ? _cryptoAsset.text.trim().toUpperCase()
+          : null,
+      cryptoQuantity: _type == AccountType.crypto
+          ? _normalizedDecimal(_cryptoQuantity.text)
+          : null,
+      cryptoAprBasisPoints:
+          _type == AccountType.crypto && _cryptoApr.text.trim().isNotEmpty
+          ? _parsePercentageBasisPoints(_cryptoApr.text)
           : null,
       active: previous?.active ?? true,
       deletedAt: previous?.deletedAt,
@@ -329,6 +350,55 @@ class _AccountFormScreenState extends ConsumerState<AccountFormScreen> {
               ),
             ),
           ],
+          if (_type == AccountType.crypto) ...[
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _cryptoAsset,
+              textCapitalization: TextCapitalization.characters,
+              decoration: const InputDecoration(
+                labelText: 'Activo',
+                hintText: 'USDT',
+              ),
+              validator: (value) {
+                final normalized = value?.trim() ?? '';
+                if (normalized.isEmpty) return 'Ingresa el activo';
+                if (!RegExp(r'^[A-Za-z0-9]{2,12}$').hasMatch(normalized)) {
+                  return 'Usa entre 2 y 12 letras o números';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _cryptoQuantity,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Cantidad exacta',
+                hintText: '44.8311617483',
+              ),
+              validator: (value) => _normalizedDecimal(value ?? '') == null
+                  ? 'Ingresa una cantidad decimal válida'
+                  : null,
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _cryptoApr,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'APR anual (opcional)',
+                suffixText: '%',
+              ),
+              validator: (value) => value == null || value.trim().isEmpty
+                  ? null
+                  : _parsePercentageBasisPoints(value) == null
+                  ? 'Usa un porcentaje con hasta 2 decimales'
+                  : null,
+            ),
+          ],
           const SizedBox(height: 24),
           FilledButton(
             onPressed: _saving ? null : _save,
@@ -400,6 +470,44 @@ class _ErrorView extends StatelessWidget {
 
 String _minorInput(int value) =>
     '${value ~/ 100}.${(value.abs() % 100).toString().padLeft(2, '0')}';
+
+String _accountSubtitle(FinancialAccount account) {
+  final details = <String>[account.type.label];
+  if (account.type == AccountType.crypto) {
+    final quantity = account.cryptoQuantity;
+    final asset = account.cryptoAssetSymbol;
+    if (quantity != null && asset != null) details.add('$quantity $asset');
+    final apr = account.cryptoAprBasisPoints;
+    if (apr != null) details.add('APR ${_percentageInput(apr)}%');
+  }
+  if (!account.active) details.add('Archivada');
+  return details.join(' · ');
+}
+
+String _percentageInput(int basisPoints) =>
+    '${basisPoints ~/ 100}.${(basisPoints % 100).toString().padLeft(2, '0')}';
+
+String? _normalizedDecimal(String input) {
+  final normalized = input.trim().replaceAll(' ', '').replaceAll(',', '.');
+  if (!RegExp(r'^\d+(\.\d+)?$').hasMatch(normalized) ||
+      !RegExp(r'[1-9]').hasMatch(normalized)) {
+    return null;
+  }
+  return normalized;
+}
+
+int? _parsePercentageBasisPoints(String input) {
+  final normalized = input.trim().replaceAll(' ', '').replaceAll(',', '.');
+  if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(normalized)) return null;
+  final parts = normalized.split('.');
+  final whole = int.tryParse(parts.first);
+  if (whole == null || whole > 1000) return null;
+  final decimal = parts.length == 1
+      ? 0
+      : int.parse(parts.last.padRight(2, '0'));
+  final basisPoints = whole * 100 + decimal;
+  return basisPoints <= 100000 ? basisPoints : null;
+}
 
 String? _dayValidator(String? value) {
   if (value == null || value.trim().isEmpty) return 'Obligatorio';

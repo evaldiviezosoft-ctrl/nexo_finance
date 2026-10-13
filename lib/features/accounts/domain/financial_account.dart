@@ -44,6 +44,9 @@ class FinancialAccount {
     this.creditLimitMinor,
     this.closingDay,
     this.paymentDay,
+    this.cryptoAssetSymbol,
+    this.cryptoQuantity,
+    this.cryptoAprBasisPoints,
     this.version = 1,
     this.deletedAt,
   });
@@ -59,6 +62,9 @@ class FinancialAccount {
   final int? creditLimitMinor;
   final int? closingDay;
   final int? paymentDay;
+  final String? cryptoAssetSymbol;
+  final String? cryptoQuantity;
+  final int? cryptoAprBasisPoints;
   final DateTime createdAt;
   final DateTime updatedAt;
   final int version;
@@ -76,6 +82,9 @@ class FinancialAccount {
     int? creditLimitMinor,
     int? closingDay,
     int? paymentDay,
+    String? cryptoAssetSymbol,
+    String? cryptoQuantity,
+    int? cryptoAprBasisPoints,
     DateTime? updatedAt,
     int? version,
     DateTime? deletedAt,
@@ -91,6 +100,9 @@ class FinancialAccount {
     creditLimitMinor: creditLimitMinor ?? this.creditLimitMinor,
     closingDay: closingDay ?? this.closingDay,
     paymentDay: paymentDay ?? this.paymentDay,
+    cryptoAssetSymbol: cryptoAssetSymbol ?? this.cryptoAssetSymbol,
+    cryptoQuantity: cryptoQuantity ?? this.cryptoQuantity,
+    cryptoAprBasisPoints: cryptoAprBasisPoints ?? this.cryptoAprBasisPoints,
     createdAt: createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     version: version ?? this.version,
@@ -110,6 +122,9 @@ class FinancialAccount {
         creditLimitMinor: map['creditLimitMinor'] as int?,
         closingDay: map['closingDay'] as int?,
         paymentDay: map['paymentDay'] as int?,
+        cryptoAssetSymbol: map['cryptoAssetSymbol'] as String?,
+        cryptoQuantity: map['cryptoQuantity'] as String?,
+        cryptoAprBasisPoints: map['cryptoAprBasisPoints'] as int?,
         createdAt: dateTimeFromFirestore(map['createdAt']),
         updatedAt: dateTimeFromFirestore(map['updatedAt']),
         version: map['version'] as int? ?? 1,
