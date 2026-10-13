@@ -6,6 +6,7 @@ import '../../../app/theme/app_colors.dart';
 import '../../../core/money/money.dart';
 import '../../../core/time/lima_time.dart';
 import '../../accounts/data/accounts_repository.dart';
+import '../../accounts/domain/financial_account.dart';
 import '../../budgets/data/budgets_repository.dart';
 import '../../budgets/domain/budget_calculator.dart';
 import '../../cards/data/card_statements_repository.dart';
@@ -95,13 +96,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       currency: Currency.pen,
     );
     var liquid = 0;
+    var invested = 0;
     var debt = 0;
     var liquidUsd = 0;
     for (final account in accounts.where(
       (item) => item.currency == Currency.pen && item.active,
     )) {
       final balance = balances[account.id] ?? account.initialBalanceMinor;
-      account.isCreditCard ? debt += balance : liquid += balance;
+      if (account.isCreditCard) {
+        debt += balance;
+      } else if (account.type == AccountType.crypto) {
+        invested += balance;
+      } else {
+        liquid += balance;
+      }
     }
     for (final account in accounts.where(
       (item) =>
@@ -128,6 +136,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ..sort((a, b) => a.dueDate.compareTo(b.dueDate));
     final upcomingRecurring = recurring.where((item) => item.active).toList()
       ..sort((a, b) => a.nextDueAt.compareTo(b.nextDueAt));
+    final accountsById = {for (final account in accounts) account.id: account};
     final pending =
         (accountState.value?.hasPendingWrites ?? false) ||
         (transactionState.value?.hasPendingWrites ?? false);
@@ -261,7 +270,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Líquido ${_amount(liquid)} · Patrimonio ${_amount(liquid - debt)} · USD ${_amount(liquidUsd - reservedUsd, Currency.usd)}',
+                      'Líquido ${_amount(liquid)} · Invertido ${_amount(invested)}\n'
+                      'Patrimonio ${_amount(liquid + invested - debt)} · USD ${_amount(liquidUsd - reservedUsd, Currency.usd)}',
                       style: const TextStyle(color: AppColors.textSecondary),
                     ),
                   ],
@@ -410,7 +420,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           child: Icon(Icons.credit_card_rounded),
                         ),
                         title: Text(
-                          'Tarjeta · ${_amount(item.amountDuePenMinor)}',
+                          '${accountsById[item.cardAccountId]?.name ?? 'Tarjeta'} · '
+                          '${_amount(item.amountDuePenMinor)}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         subtitle: Text(
                           'Vence ${item.dueDate.day.toString().padLeft(2, '0')}/${item.dueDate.month.toString().padLeft(2, '0')}/${item.dueDate.year}',
