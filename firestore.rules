@@ -1,0 +1,257 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedInAs(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function validBase(uid, documentId) {
+      return request.resource.data.id == documentId
+        && request.resource.data.userId == uid
+        && request.resource.data.version is int
+        && request.resource.data.version >= 1
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.updatedAt is timestamp
+        && (!('deletedAt' in request.resource.data)
+          || request.resource.data.deletedAt == null
+          || request.resource.data.deletedAt is timestamp);
+    }
+
+    function immutableOwnership() {
+      return request.resource.data.id == resource.data.id
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.version > resource.data.version;
+    }
+
+    function validAccount(uid, accountId) {
+      return validBase(uid, accountId)
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 80
+        && request.resource.data.type in [
+          'cash', 'bank', 'debitCard', 'creditCard', 'savings',
+          'fixedDeposit', 'digitalWallet', 'crypto', 'custom'
+        ]
+        && request.resource.data.currency in ['pen', 'usd']
+        && request.resource.data.initialBalanceMinor is int
+        && request.resource.data.active is bool
+        && (!('creditLimitMinor' in request.resource.data)
+          || request.resource.data.creditLimitMinor == null
+          || (request.resource.data.creditLimitMinor is int
+            && request.resource.data.creditLimitMinor >= 0))
+        && (!('closingDay' in request.resource.data)
+          || request.resource.data.closingDay == null
+          || (request.resource.data.closingDay is int
+            && request.resource.data.closingDay >= 1
+            && request.resource.data.closingDay <= 31))
+        && (!('paymentDay' in request.resource.data)
+          || request.resource.data.paymentDay == null
+          || (request.resource.data.paymentDay is int
+            && request.resource.data.paymentDay >= 1
+            && request.resource.data.paymentDay <= 31));
+    }
+
+    function validCategory(uid, categoryId) {
+      return validBase(uid, categoryId)
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 60
+        && request.resource.data.type in ['expense', 'income']
+        && request.resource.data.order is int
+        && request.resource.data.active is bool;
+    }
+
+    function validTransaction(uid, transactionId) {
+      return validBase(uid, transactionId)
+        && request.resource.data.kind in [
+          'expense', 'income', 'transfer', 'creditPurchase',
+          'creditPayment', 'loanGiven', 'loanRepayment',
+          'goalContribution', 'goalWithdrawal', 'debtPayment', 'refund'
+        ]
+        && request.resource.data.amountMinor is int
+        && request.resource.data.amountMinor > 0
+        && request.resource.data.currency in ['pen', 'usd']
+        && request.resource.data.occurredAt is timestamp
+        && request.resource.data.description is string
+        && request.resource.data.description.size() <= 160
+        && request.resource.data.note is string
+        && request.resource.data.note.size() <= 1000
+        && (!('thirdPartyAmountMinor' in request.resource.data)
+          || request.resource.data.thirdPartyAmountMinor == null
+          || (request.resource.data.thirdPartyAmountMinor is int
+            && request.resource.data.thirdPartyAmountMinor >= 0));
+    }
+
+    function validBudget(uid, budgetId) {
+      return validBase(uid, budgetId)
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 80
+        && request.resource.data.period in ['daily', 'weekly', 'monthly', 'custom']
+        && request.resource.data.amountMinor is int
+        && request.resource.data.amountMinor > 0
+        && request.resource.data.currency in ['pen', 'usd']
+        && request.resource.data.rollover is bool
+        && request.resource.data.active is bool;
+    }
+
+    function validCardStatement(uid, statementId) {
+      return validBase(uid, statementId)
+        && request.resource.data.cardAccountId is string
+        && request.resource.data.cycleStart is timestamp
+        && request.resource.data.cycleEnd is timestamp
+        && request.resource.data.dueDate is timestamp
+        && request.resource.data.amountDuePenMinor is int
+        && request.resource.data.amountDuePenMinor >= 0
+        && request.resource.data.amountDueUsdMinor is int
+        && request.resource.data.amountDueUsdMinor >= 0
+        && request.resource.data.reservedPenMinor is int
+        && request.resource.data.reservedPenMinor >= 0
+        && request.resource.data.reservedUsdMinor is int
+        && request.resource.data.reservedUsdMinor >= 0
+        && request.resource.data.status in ['projected', 'open', 'paid'];
+    }
+
+    function validRecurring(uid, recurringId) {
+      return validBase(uid, recurringId)
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 160
+        && request.resource.data.kind in ['expense', 'income']
+        && request.resource.data.amountMinor is int
+        && request.resource.data.amountMinor > 0
+        && request.resource.data.currency in ['pen', 'usd']
+        && request.resource.data.frequency in ['weekly', 'monthly', 'yearly']
+        && request.resource.data.interval is int
+        && request.resource.data.interval >= 1
+        && request.resource.data.nextDueAt is timestamp
+        && request.resource.data.active is bool;
+    }
+
+    function validGoal(uid, goalId) {
+      return validBase(uid, goalId)
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 80
+        && request.resource.data.targetMinor is int
+        && request.resource.data.targetMinor > 0
+        && request.resource.data.openingAmountMinor is int
+        && request.resource.data.openingAmountMinor >= 0
+        && request.resource.data.currency in ['pen', 'usd']
+        && request.resource.data.priority in ['low', 'medium', 'high']
+        && request.resource.data.allowWithdrawals is bool
+        && request.resource.data.notes is string
+        && request.resource.data.notes.size() <= 1000
+        && request.resource.data.active is bool;
+    }
+
+    function validDebt(uid, debtId) {
+      return validBase(uid, debtId)
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 100
+        && request.resource.data.direction in ['owed', 'receivable']
+        && request.resource.data.type in [
+          'personal', 'bankLoan', 'financedPurchase', 'vehicle', 'shared', 'custom'
+        ]
+        && request.resource.data.party is string
+        && request.resource.data.party.size() > 0
+        && request.resource.data.party.size() <= 100
+        && request.resource.data.initialPrincipalMinor is int
+        && request.resource.data.initialPrincipalMinor > 0
+        && request.resource.data.currency in ['pen', 'usd']
+        && request.resource.data.annualRateBasisPoints is int
+        && request.resource.data.annualRateBasisPoints >= 0
+        && request.resource.data.thirdPartyContributionMinor is int
+        && request.resource.data.thirdPartyContributionMinor >= 0
+        && request.resource.data.status in ['active', 'paid', 'paused']
+        && request.resource.data.notes is string
+        && request.resource.data.notes.size() <= 1000;
+    }
+
+    match /users/{uid} {
+      allow read, write: if false;
+
+      match /accounts/{accountId} {
+        allow get, list: if signedInAs(uid);
+        allow create: if signedInAs(uid) && validAccount(uid, accountId);
+        allow update: if signedInAs(uid)
+          && validAccount(uid, accountId)
+          && immutableOwnership();
+        allow delete: if signedInAs(uid) && resource.data.userId == uid;
+      }
+
+      match /categories/{categoryId} {
+        allow get, list: if signedInAs(uid);
+        allow create: if signedInAs(uid) && validCategory(uid, categoryId);
+        allow update: if signedInAs(uid)
+          && validCategory(uid, categoryId)
+          && immutableOwnership();
+        allow delete: if signedInAs(uid) && resource.data.userId == uid;
+      }
+
+      match /transactions/{transactionId} {
+        allow get, list: if signedInAs(uid);
+        allow create: if signedInAs(uid)
+          && validTransaction(uid, transactionId);
+        allow update: if signedInAs(uid)
+          && validTransaction(uid, transactionId)
+          && immutableOwnership();
+        allow delete: if signedInAs(uid) && resource.data.userId == uid;
+      }
+
+      match /budgets/{budgetId} {
+        allow get, list: if signedInAs(uid);
+        allow create: if signedInAs(uid) && validBudget(uid, budgetId);
+        allow update: if signedInAs(uid)
+          && validBudget(uid, budgetId)
+          && immutableOwnership();
+        allow delete: if signedInAs(uid) && resource.data.userId == uid;
+      }
+
+      match /cardStatements/{statementId} {
+        allow get, list: if signedInAs(uid);
+        allow create: if signedInAs(uid)
+          && validCardStatement(uid, statementId);
+        allow update: if signedInAs(uid)
+          && validCardStatement(uid, statementId)
+          && immutableOwnership();
+        allow delete: if signedInAs(uid) && resource.data.userId == uid;
+      }
+
+      match /recurringTransactions/{recurringId} {
+        allow get, list: if signedInAs(uid);
+        allow create: if signedInAs(uid)
+          && validRecurring(uid, recurringId);
+        allow update: if signedInAs(uid)
+          && validRecurring(uid, recurringId)
+          && immutableOwnership();
+        allow delete: if signedInAs(uid) && resource.data.userId == uid;
+      }
+
+      match /goals/{goalId} {
+        allow get, list: if signedInAs(uid);
+        allow create: if signedInAs(uid) && validGoal(uid, goalId);
+        allow update: if signedInAs(uid)
+          && validGoal(uid, goalId)
+          && immutableOwnership();
+        allow delete: if signedInAs(uid) && resource.data.userId == uid;
+      }
+
+      match /debts/{debtId} {
+        allow get, list: if signedInAs(uid);
+        allow create: if signedInAs(uid) && validDebt(uid, debtId);
+        allow update: if signedInAs(uid)
+          && validDebt(uid, debtId)
+          && immutableOwnership();
+        allow delete: if signedInAs(uid) && resource.data.userId == uid;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
